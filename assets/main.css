@@ -1122,7 +1122,7 @@ body.is-instant:after {
 
 #buttons01 .button {
 	background-color: transparent;
-	color: #FFEEFE;
+	color: #FFFFFF;
 }
 
 #buttons02 {
@@ -1233,7 +1233,7 @@ body.is-instant:after {
 }
 
 #icons01 a svg {
-	fill: #FFEEFE;
+	fill: #000000;
 }
 
 #icons01 li a + svg {
