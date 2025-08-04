@@ -37,7 +37,7 @@ body:after {
 	pointer-events: none;
 	position: fixed;
 	transform: scale(1);
-	z-index: 1;
+i	z-index: 1;
 	height: 100%;
 	left: 0;
 	opacity: 0;
@@ -1122,7 +1122,7 @@ body.is-instant:after {
 
 #buttons01 .button {
 	background-color: transparent;
-	color: #000000;
+	color: #FFEEFE;
 }
 
 #buttons02 {
@@ -1233,7 +1233,7 @@ body.is-instant:after {
 }
 
 #icons01 a svg {
-	fill: #000000;
+	fill: #FFEEFE;
 }
 
 #icons01 li a + svg {
