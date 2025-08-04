@@ -29,27 +29,38 @@
 					a = [
 						[
 							'firefox',
-							/Firefox\/([0-9\.]+)/
+							/Firefox\/([0-9\.]+)/,
+							null
 						],
 						[
 							'edge',
-							/Edge\/([0-9\.]+)/
+							/Edge\/([0-9\.]+)/,
+							null
 						],
 						[
 							'safari',
-							/Version\/([0-9\.]+).+Safari/
+							/Version\/([0-9\.]+).+Safari/,
+							null
 						],
 						[
 							'chrome',
-							/Chrome\/([0-9\.]+)/
+							/Chrome\/([0-9\.]+)/,
+							null
 						],
 						[
 							'chrome',
-							/CriOS\/([0-9\.]+)/
+							/CriOS\/([0-9\.]+)/,
+							null
 						],
 						[
 							'ie',
-							/Trident\/.+rv:([0-9]+)/
+							/Trident\/.+rv:([0-9]+)/,
+							null
+						],
+						[
+							'safari',
+							/iPhone OS ([0-9_]+)/,
+							function(v) { return v.replace('_', '.').replace('_', ''); }
 						]
 					];
 		
@@ -58,7 +69,7 @@
 						if (ua.match(a[i][1])) {
 		
 							o.browser = a[i][0];
-							o.browserVersion = parseFloat(RegExp.$1);
+							o.browserVersion = parseFloat( a[i][2] ? (a[i][2])(RegExp.$1) : RegExp.$1 );
 		
 							break;
 		
@@ -174,6 +185,17 @@
 				return o;
 		
 			}()),
+			ready = {
+				list: [],
+				add: function(f) {
+					this.list.push(f);
+				},
+				run: function() {
+					this.list.forEach((f) => {
+						f();
+					});
+				},
+			},
 			trigger = function(t) {
 				dispatchEvent(new Event(t));
 			},
@@ -202,6 +224,30 @@
 					f(ss[i]);
 		
 				return a;
+		
+			},
+			escapeHtml = function(s) {
+		
+				// Blank, null, or undefined? Return blank string.
+					if (s === ''
+					||	s === null
+					||	s === undefined)
+						return '';
+		
+				// Escape HTML characters.
+					var a = {
+						'&': '&amp;',
+						'<': '&lt;',
+						'>': '&gt;',
+						'"': '&quot;',
+						"'": '&#39;',
+					};
+		
+					s = s.replace(/[&<>"']/g, function(x) {
+						return a[x];
+					});
+		
+				return s;
 		
 			},
 			thisHash = function() {
@@ -415,6 +461,52 @@
 		
 						}
 		
+				// Embeds.
+		
+					// Get unloaded embeds.
+						a = parent.querySelectorAll('unloaded-script');
+		
+					// Step through list.
+						for (i=0; i < a.length; i++) {
+		
+							// Create replacement script tag.
+								x = document.createElement('script');
+		
+							// Set "loaded" data attribute (so we can unload this element later).
+								x.setAttribute('data-loaded', '');
+		
+							// Set "src" attribute (if present).
+								if (a[i].getAttribute('src'))
+									x.setAttribute('src', a[i].getAttribute('src'));
+		
+							// Set text content (if present).
+								if (a[i].textContent)
+									x.textContent = a[i].textContent;
+		
+							// Replace.
+								a[i].replaceWith(x);
+		
+						}
+		
+				// Everything else.
+		
+					// Create "loadelements" event.
+						x = new Event('loadelements');
+		
+					// Get unloaded elements.
+						a = parent.querySelectorAll('[data-unloaded]');
+		
+					// Step through list.
+						a.forEach((element) => {
+		
+							// Clear attribute.
+								element.removeAttribute('data-unloaded');
+		
+							// Dispatch event.
+								element.dispatchEvent(x);
+		
+						});
+		
 			},
 			unloadElements = function(parent) {
 		
@@ -470,6 +562,33 @@
 						if (e)
 							e.blur();
 		
+				// Embeds.
+				// NOTE: Disabled for now. May want to bring this back later.
+				/*
+		
+					// Get loaded embeds.
+						a = parent.querySelectorAll('script[data-loaded]');
+		
+					// Step through list.
+						for (i=0; i < a.length; i++) {
+		
+							// Create replacement unloaded-script tag.
+								x = document.createElement('unloaded-script');
+		
+							// Set "src" attribute (if present).
+								if (a[i].getAttribute('src'))
+									x.setAttribute('src', a[i].getAttribute('src'));
+		
+							// Set text content (if present).
+								if (a[i].textContent)
+									x.textContent = a[i].textContent;
+		
+							// Replace.
+								a[i].replaceWith(x);
+		
+						}
+		
+				*/
 		
 			};
 		
@@ -511,6 +630,7 @@
 				header, footer, name, hideHeader, hideFooter, disableAutoScroll,
 				h, e, ee, k,
 				locked = false,
+				title = document.title,
 				scrollPointParent = function(target) {
 		
 					while (target) {
@@ -854,11 +974,17 @@
 									// Deactivate.
 										currentSection.classList.add('inactive');
 		
+									// Reset title.
+										document.title = title;
+		
 									// Unload elements.
 										unloadElements(currentSection);
 		
 									// Reset section change elements.
 										resetSectionChangeElements(currentSection);
+		
+									// Clear timeout (if present).
+										clearTimeout(window._sectionTimeoutId);
 		
 										// Hide.
 											setTimeout(function() {
@@ -867,6 +993,10 @@
 											}, 375);
 		
 									}
+		
+							// Update title.
+								if (section.dataset.title)
+									document.title = section.dataset.title + ' - ' + title;
 		
 							// Activate target section.
 								setTimeout(function() {
@@ -1111,18 +1241,27 @@
 					// Activate initial section.
 						initialSection.classList.add('active');
 		
-					// Load elements.
-						loadElements(initialSection);
+					// Add ready event.
+						ready.add(() => {
 		
-						if (header)
-							loadElements(header);
+							// Update title.
+								if (initialSection.dataset.title)
+									document.title = initialSection.dataset.title + ' - ' + title;
 		
-						if (footer)
-							loadElements(footer);
+							// Load elements.
+								loadElements(initialSection);
 		
-					// Scroll to top (if not disabled for this section).
-						if (!disableAutoScroll)
-							scrollToElement(null, 'instant');
+								if (header)
+									loadElements(header);
+		
+								if (footer)
+									loadElements(footer);
+		
+							// Scroll to top (if not disabled for this section).
+								if (!disableAutoScroll)
+									scrollToElement(null, 'instant');
+		
+						});
 		
 				// Load event.
 					on('load', function() {
@@ -1407,5 +1546,371 @@
 					$body.classList.add('is-touch');
 		
 			}
+	
+	// Scroll events.
+		var scrollEvents = {
+		
+			/**
+			 * Items.
+			 * @var {array}
+			 */
+			items: [],
+		
+			/**
+			 * Adds an event.
+			 * @param {object} o Options.
+			 */
+			add: function(o) {
+		
+				this.items.push({
+					element: o.element,
+					triggerElement: (('triggerElement' in o && o.triggerElement) ? o.triggerElement : o.element),
+					enter: ('enter' in o ? o.enter : null),
+					leave: ('leave' in o ? o.leave : null),
+					mode: ('mode' in o ? o.mode : 4),
+					threshold: ('threshold' in o ? o.threshold : 0.25),
+					offset: ('offset' in o ? o.offset : 0),
+					initialState: ('initialState' in o ? o.initialState : null),
+					state: false,
+				});
+		
+			},
+		
+			/**
+			 * Handler.
+			 */
+			handler: function() {
+		
+				var	height, top, bottom, scrollPad;
+		
+				// Determine values.
+					if (client.os == 'ios') {
+		
+						height = document.documentElement.clientHeight;
+						top = document.body.scrollTop + window.scrollY;
+						bottom = top + height;
+						scrollPad = 125;
+		
+					}
+					else {
+		
+						height = document.documentElement.clientHeight;
+						top = document.documentElement.scrollTop;
+						bottom = top + height;
+						scrollPad = 0;
+		
+					}
+		
+				// Step through items.
+					scrollEvents.items.forEach(function(item) {
+		
+						var	elementTop, elementBottom, viewportTop, viewportBottom,
+							bcr, pad, state, a, b;
+		
+						// No enter/leave handlers? Bail.
+							if (!item.enter
+							&&	!item.leave)
+								return true;
+		
+						// No trigger element? Bail.
+							if (!item.triggerElement)
+								return true;
+		
+						// Trigger element not visible?
+							if (item.triggerElement.offsetParent === null) {
+		
+								// Current state is active *and* leave handler exists?
+									if (item.state == true
+									&&	item.leave) {
+		
+										// Reset state to false.
+											item.state = false;
+		
+										// Call it.
+											(item.leave).apply(item.element);
+		
+										// No enter handler? Unbind leave handler (so we don't check this element again).
+											if (!item.enter)
+												item.leave = null;
+		
+									}
+		
+								// Bail.
+									return true;
+		
+							}
+		
+						// Get element position.
+							bcr = item.triggerElement.getBoundingClientRect();
+							elementTop = top + Math.floor(bcr.top);
+							elementBottom = elementTop + bcr.height;
+		
+						// Determine state.
+		
+							// Initial state exists?
+								if (item.initialState !== null) {
+		
+									// Use it for this check.
+										state = item.initialState;
+		
+									// Clear it.
+										item.initialState = null;
+		
+								}
+		
+							// Otherwise, determine state from mode/position.
+								else {
+		
+									switch (item.mode) {
+		
+										// Element falls within viewport.
+											case 1:
+											default:
+		
+												// State.
+													state = (bottom > (elementTop - item.offset) && top < (elementBottom + item.offset));
+		
+												break;
+		
+										// Viewport midpoint falls within element.
+											case 2:
+		
+												// Midpoint.
+													a = (top + (height * 0.5));
+		
+												// State.
+													state = (a > (elementTop - item.offset) && a < (elementBottom + item.offset));
+		
+												break;
+		
+										// Viewport midsection falls within element.
+											case 3:
+		
+												// Upper limit (25%-).
+													a = top + (height * (item.threshold));
+		
+													if (a - (height * 0.375) <= 0)
+														a = 0;
+		
+												// Lower limit (-75%).
+													b = top + (height * (1 - item.threshold));
+		
+													if (b + (height * 0.375) >= document.body.scrollHeight - scrollPad)
+														b = document.body.scrollHeight + scrollPad;
+		
+												// State.
+													state = (b > (elementTop - item.offset) && a < (elementBottom + item.offset));
+		
+												break;
+		
+										// Viewport intersects with element.
+											case 4:
+		
+												// Calculate pad, viewport top, viewport bottom.
+													pad = height * item.threshold;
+													viewportTop = (top + pad);
+													viewportBottom = (bottom - pad);
+		
+												// Compensate for elements at the very top or bottom of the page.
+													if (Math.floor(top) <= pad)
+														viewportTop = top;
+		
+													if (Math.ceil(bottom) >= (document.body.scrollHeight - pad))
+														viewportBottom = bottom;
+		
+												// Element is smaller than viewport?
+													if ((viewportBottom - viewportTop) >= (elementBottom - elementTop)) {
+		
+														state =	(
+																(elementTop >= viewportTop && elementBottom <= viewportBottom)
+															||	(elementTop >= viewportTop && elementTop <= viewportBottom)
+															||	(elementBottom >= viewportTop && elementBottom <= viewportBottom)
+														);
+		
+													}
+		
+												// Otherwise, viewport is smaller than element.
+													else
+														state =	(
+																(viewportTop >= elementTop && viewportBottom <= elementBottom)
+															||	(elementTop >= viewportTop && elementTop <= viewportBottom)
+															||	(elementBottom >= viewportTop && elementBottom <= viewportBottom)
+														);
+		
+												break;
+		
+									}
+		
+								}
+		
+						// State changed?
+							if (state != item.state) {
+		
+								// Update state.
+									item.state = state;
+		
+								// Call handler.
+									if (item.state) {
+		
+										// Enter handler exists?
+											if (item.enter) {
+		
+												// Call it.
+													(item.enter).apply(item.element);
+		
+												// No leave handler? Unbind enter handler (so we don't check this element again).
+													if (!item.leave)
+														item.enter = null;
+		
+											}
+		
+									}
+									else {
+		
+										// Leave handler exists?
+											if (item.leave) {
+		
+												// Call it.
+													(item.leave).apply(item.element);
+		
+												// No enter handler? Unbind leave handler (so we don't check this element again).
+													if (!item.enter)
+														item.leave = null;
+		
+											}
+		
+									}
+		
+							}
+		
+					});
+		
+			},
+		
+			/**
+			 * Initializes scroll events.
+			 */
+			init: function() {
+		
+				// Bind handler to events.
+					on('load', this.handler);
+					on('resize', this.handler);
+					on('scroll', this.handler);
+		
+				// Do initial handler call.
+					(this.handler)();
+		
+			}
+		};
+		
+		// Initialize.
+			scrollEvents.init();
+	
+	// Deferred.
+		(function() {
+		
+			var items = $$('.deferred'),
+				loadHandler, enterHandler;
+		
+			// Handlers.
+		
+				/**
+				 * "On Load" handler.
+				 */
+				loadHandler = function() {
+		
+					var i = this,
+						p = this.parentElement,
+						duration = 375;
+		
+					// Not "done" yet? Bail.
+						if (i.dataset.src !== 'done')
+							return;
+		
+					// Image loaded faster than expected? Reduce transition duration.
+						if (Date.now() - i._startLoad < duration)
+							duration = 175;
+		
+					// Set transition duration.
+						i.style.transitionDuration = (duration / 1000.00) + 's';
+		
+					// Show image.
+						p.classList.remove('loading');
+						i.style.opacity = 1;
+		
+						setTimeout(function() {
+		
+							// Clear background image.
+								i.style.backgroundImage = 'none';
+		
+							// Clear transition properties.
+								i.style.transitionProperty = '';
+								i.style.transitionTimingFunction = '';
+								i.style.transitionDuration = '';
+		
+						}, duration);
+		
+				};
+		
+				/**
+				 * "On Enter" handler.
+				 */
+				enterHandler = function() {
+		
+					var	i = this,
+						p = this.parentElement,
+						src;
+		
+					// Get src, mark as "done".
+						src = i.dataset.src;
+						i.dataset.src = 'done';
+		
+					// Mark parent as loading.
+						p.classList.add('loading');
+		
+					// Swap placeholder for real image src.
+						i._startLoad = Date.now();
+						i.src = src;
+		
+				};
+		
+			// Initialize items.
+				items.forEach(function(p) {
+		
+					var i = p.firstElementChild;
+		
+					// Set parent to placeholder.
+						if (!p.classList.contains('enclosed')) {
+		
+							p.style.backgroundImage = 'url(' + i.src + ')';
+							p.style.backgroundSize = '100% 100%';
+							p.style.backgroundPosition = 'top left';
+							p.style.backgroundRepeat = 'no-repeat';
+		
+						}
+		
+					// Hide image.
+						i.style.opacity = 0;
+		
+					// Set transition properties.
+						i.style.transitionProperty = 'opacity';
+						i.style.transitionTimingFunction = 'ease-in-out';
+		
+					// Load event.
+						i.addEventListener('load', loadHandler);
+		
+					// Add to scroll events.
+						scrollEvents.add({
+							element: i,
+							enter: enterHandler,
+							offset: 250,
+						});
+		
+				});
+		
+		})();
+	
+	// Run ready handlers.
+		ready.run();
 
 })();
