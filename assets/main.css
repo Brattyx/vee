@@ -9,8 +9,8 @@ body {
 	min-height: var(--viewport-height);
 	min-width: 320px;
 	overflow-x: hidden;
-	word-wrap: break-word;
-	background-color: #FBF8F7;
+	word-wrap: break-word;	
+	background-image: linear-gradient(to bottom, #FFEEFE, #FFDEF9; /* Red to blue */
 }
 
 body:before {
@@ -1105,17 +1105,22 @@ body.is-instant:after {
 }
 
 #buttons02 .button {
-	background-color: #CFC7C4;
+	background-color: #FFEEFE;
 	color: #FFFFFF;
-}
-
+      }
+;
+      }
 #buttons02 .n01 {
-	background-color: #CFC7C4;
+	background-color: #FFEEFE;
+	hover {
+        background-color: #FFDEF9;
 }
 
 #buttons02 .n02 {
-	background-color: #E8E5E3;
+	background-color: #FFEEFE;
 	color: #000000;
+	hover {
+        background-color: #FFDEF9;
 }
 
 .icons {
@@ -1751,7 +1756,8 @@ hr:before {
 #image01 .frame {
 	width: 7rem;
 	border-radius: 100%;
-	border-color: #D7D4D3;
+	border-color: #FFEEFE;
+	drop-shadow:(0px 1px 0.123px #CAC6C5BA);
 	border-style: solid;
 	border-width: 2px;
 	transition: none;
